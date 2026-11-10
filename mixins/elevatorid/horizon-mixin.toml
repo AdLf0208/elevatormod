@@ -1,0 +1,100 @@
+[mod]
+id = "elevatorid"
+version = "0.1.0"
+priority = 100
+
+[compatibility]
+horizon_revision = "1d63e0a5a37a7a708eb0b32b49bf0dfeb28ed8a9"
+
+# The pure travel planner (standalone crate lib, injected as
+# `crate::game::elevatorid`).
+# The content half is inside this bundle (`data/elevatorid-content.hmod`, the built
+# `content/elevatorid.hmod`): this writes it to `.horizon-cache/` and appends it to the
+# dev-mod list, so one `.hnmod` installs the content and the code. The registry
+# keeps one file per project, so a split port could not be listed; AE2 ships the
+# same pattern.
+[[injection]]
+id = "embedded-content"
+kind = "HEAD"
+cancellable = true
+target = "horizon_client::game::mods::content_root"
+helper = "embedded_content.rs"
+bindings = [
+  { name = "root", ty = "&std::path::Path", value = "root" },
+  { name = "enabled", ty = "&std::collections::BTreeSet<String>", value = "enabled" },
+  { name = "dev", ty = "&[std::path::PathBuf]", value = "dev" },
+]
+
+[[module]]
+id = "runtime"
+file = "crates/horizon-client/src/game.rs"
+name = "elevatorid"
+source = "runtime.rs"
+
+# Game-side glue: input detection, the pending queue, the native teleport.
+[[module]]
+id = "state"
+file = "crates/horizon-client/src/game.rs"
+name = "elevatorid_state"
+source = "support.rs"
+
+# Per player tick: the body-based fallback for a jump take-off.
+[[injection]]
+id = "player-tick"
+hook = "player_tick"
+hook_version = 1
+kind = "HEAD"
+helper = "player.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+]
+
+# A server player jumped from the ground: the exact jump edge (API 344), so a
+# jump clipped by a low ceiling is still seen.
+[[injection]]
+id = "player-jump"
+hook = "player_jump"
+hook_version = 1
+kind = "HEAD"
+helper = "jump.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "player", ty = "u128", value = "player" },
+]
+
+# A server player's sneak flag changed (API 351): the exact sneak press.
+[[injection]]
+id = "player-sneak"
+hook = "player_toggle_sneak"
+hook_version = 1
+kind = "HEAD"
+helper = "sneak.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "player", ty = "u128", value = "player" },
+  { name = "sneaking", ty = "bool", value = "sneaking" },
+]
+
+# End of a running server tick: scan the column and teleport natively.
+[[injection]]
+id = "server-tick"
+hook = "server_tick"
+hook_version = 1
+kind = "HEAD"
+helper = "server.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "context", ty = "&NativeLifecycleContext", value = "context" },
+  { name = "phase", ty = "ServerTickPhase", value = "phase" },
+]
+
+# The window's tick: raw Space is visible here (the server never sees it).
+[[injection]]
+id = "tick"
+hook = "tick"
+hook_version = 1
+kind = "HEAD"
+helper = "tick.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+]

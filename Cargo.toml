@@ -1,0 +1,16 @@
+[package]
+name = "horizon-elevatorid"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+license = "MIT"
+description = "ElevatorMod for Horizon: jump/sneak to travel between elevator blocks"
+# Ported from: ElevatorMod 1.21.1-1.11.4 (VsnGamer/ElevatorMod, MIT),
+# Minecraft Java 1.21.1 NeoForge. Local-only port.
+
+[lib]
+path = "mixins/elevatorid/runtime.rs"
+
+[workspace]
+members = ["tools/audit"]
+resolver = "2"

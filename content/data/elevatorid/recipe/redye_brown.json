@@ -1,0 +1,11 @@
+{
+  "group": "elevatorsRedye",
+  "ingredients": [
+    "#elevatorid:elevators",
+    "#c:dyes/brown"
+  ],
+  "result": {
+    "id": "elevatorid:elevator_brown"
+  },
+  "type": "minecraft:crafting_shapeless"
+}

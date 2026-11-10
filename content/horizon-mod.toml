@@ -1,0 +1,10 @@
+# Port-owned content-mod manifest for the carried ElevatorMod assets and data
+# (the port's `--dev-mod content` folder). The assets/data themselves are the
+# carry from `elevatorid-neoforge-1.21.1-1.11.4.jar` (MIT), with the hand fixes
+# listed in README.md.
+id = "elevatorid"
+name = "ElevatorMod"
+version = "1.21.1-1.11.4"
+api = "0.2"
+side = "both"
+capabilities = ["registries"]
