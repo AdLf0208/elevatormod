@@ -1,0 +1,16 @@
+{
+  "group": "elevator",
+  "key": {
+    "E": "minecraft:ender_pearl",
+    "W": "minecraft:light_gray_wool"
+  },
+  "pattern": [
+    "WWW",
+    "WEW",
+    "WWW"
+  ],
+  "result": {
+    "id": "elevatorid:elevator_light_gray"
+  },
+  "type": "minecraft:crafting_shaped"
+}

@@ -1,0 +1,32 @@
+# ElevatorMod for Horizon — one flat SDK package (mod API 0.2).
+#
+# Sixteen coloured elevator blocks, carried from ElevatorMod 1.21.1-1.11.4 (VsnGamer/ElevatorMod,
+# MIT), and the behaviour the jar's client half drives: stand on an elevator, jump to travel to the
+# nearest elevator above, sneak to travel to the nearest one below — within the same column, up to
+# 384 blocks, and only where the cell above the target does not suffocate. Local-only until the
+# maintainer approves publishing (ARCHITECTURE.md §8).
+#
+# A native mod: Rust in src/, compiled by the launcher against the game build [native] pins,
+# beside data/ and assets/. The id is the resource namespace and the only identity: Cargo's
+# package name and version are not the mod's.
+id = "elevatorid"
+name = "ElevatorMod"
+# The port's own version, not the original mod's 1.21.1-1.11.4: a first publication under the SDK
+# package format (the retired .hnmod bundle was the campaign's 0.1.0).
+version = "0.2.0"
+description = """Sixteen coloured elevator blocks. Stand on one and jump to ride the column up to the nearest elevator above you, or sneak to ride it down to the nearest one below: the destination is the top of that elevator's block, centred, and your view is kept. A target whose cell above suffocates is skipped and the ride continues past it, up to 384 blocks and 6 blocks below your feet for the origin. Camouflage, the per-block options screen, directional yaw and the arrow, the XP cost, mob spawning, sounds and the config file are not ported yet."""
+authors = ["Vasco (ElevatorMod)", "Horizon native mod contributors"]
+# A native mod: Rust in src/, compiled by the launcher against the game build [native] pins,
+# beside data/ and assets/.
+api = "0.2"
+# The installation side, not the hook's: an integrated server belongs to the client installation,
+# so a LAN host and a single-player world need both. A dedicated server is "server".
+side = "both"
+# The one shared value every manifest carries ("May add blocks, items, mob effects and entity
+# types"): this package declares 16 blocks and their items, recipes, loot and tags.
+capabilities = ["registries"]
+
+[native]
+game = "26.3"
+horizon = "0b14f8acfd97fa2c750e42795249dcc981178ca4"
+mixins = "e59da9094f0c2fdda6c627fe9eff22dec6a906f0"
