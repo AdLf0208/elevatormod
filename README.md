@@ -1,69 +1,68 @@
-# ElevatorMod for Horizon
+# ElevatorMod — a Horizon port
 
-Sixteen coloured elevator blocks and the ride between them, for Horizon (Minecraft 26.3) as one
-flat SDK package: `horizon-mod.toml` + `Cargo.toml` + `src/` + `assets/` + `data/`.
+**ElevatorMod** is a Minecraft mod. Port of the elevator from OpenBlocks for Minecraft 1.8+. This repository is a **port of it to [Horizon](https://github.com/horizon-rust/horizon)**, the Rust engine for Minecraft Java 26.3. It carries the complete source of the port plus the content files it ships, and installs as a single `.hmod` package.
 
-Ported from **ElevatorMod 1.21.1-1.11.4** (`VsnGamer/ElevatorMod`, MIT) — a clean-room Rust
-rewrite from the upstream source read for behaviour only; the sixteen blocks, their recipes,
-loot, tags, models, textures and translations are carried from the jar unchanged.
+Upstream: [VsnGamer/ElevatorMod](https://github.com/VsnGamer/ElevatorMod) — licence **MIT**.
 
-## What it does
+| | |
+|---|---|
+| Upstream mod | ElevatorMod ([source](https://github.com/VsnGamer/ElevatorMod)) |
+| Ported to | Horizon 0b14f8a, Minecraft Java 26.3, mod API `0.2` |
+| Package | `elevatorid.hmod` (install it with the Horizon launcher) |
+| Licence | **MIT** — the upstream mod's licence; see [Licence and credit](#licence-and-credit) |
 
-- **Jump on an elevator** to ride the column up to the nearest elevator above you; **sneak** to
-  ride it down to the nearest one below.
-- The destination is the top of the target block, x/z centred on it, and your view is kept.
-- A target whose cell above suffocates is skipped and the scan continues past it, up to the
-  upstream default range of 384 blocks; the origin is the first elevator at most 6 blocks below
-  your feet.
-- Both edges come from the server's own reports (`player_jump`, `player_toggle_sneak`), so a jump
-  clipped by a low ceiling still rides, and holding jump does not climb repeatedly (a 10-tick
-  cooldown).
-- Spectators do not ride.
+## What this port implements
 
-## What it does not do yet
+- **Origin**: from the feet block, scan down at most `ACTIVATION_RANGE` (6)
+- **Target**: step one cell at a time in the travel direction, stop at
+- **Teleport**: destination is the target block's top, x/z centred
+- 16 coloured elevator blocks (white base: 8 wool in a ring + 1 ender pearl;
+- Stand on an elevator and **jump → teleport up** the same column;
+- A candidate elevator is valid only with ≥1 non-solid block directly above.
+- Config (`serverconfig/elevatorid-server.toml`, NeoForge 1.21.1 defaults):
+- Extras not in scope for the first slice: per-block options GUI
 
-Camouflage (a block applied to an elevator), the per-block options screen and its
-directional/arrow state, the XP cost, mob spawning, the teleport sound and particles, and the
-`serverconfig` file (the defaults above are constants). The block template is opaque, so an
-elevator looks right but is not `noOcclusion`. See `notes.md` for the full gap list and the
-upstream-defect rulings.
+## Not yet ported
 
-## Build and verify
+- **Teleport motion** (documented deviation): the native helper `/tp`s as a
+- **Input**: raw key edges unavailable; jump inferred from the body (see above),
+- **Suffocation**: approximated with a full-collision block
+- **Not carried**: camouflage, options GUI, directional model/arrow/yaw,
+- The 16 blocks use the `stone` template (opaque, light-dampening 15), so an
+- **The two fallback edges are gone.** `player_tick`'s body predicate and the window's Space edge
+- **Suffocation now means "a collision box covers the whole cell" from the level's own shapes**
+- **The cooldown tick comes from the context**, not a self-counted tick (`TickId::get()`); same
 
-The pinned SDK is fetched into `.horizon/sdk/` by any `cargo horizon-mod` command (gitignored),
-and the manifest pins the game build, Horizon and mixins commits.
+## Installing
 
-```sh
-cargo test                                          # 15 tests: the planner and the travel queue
-cargo clippy --all-targets -- -D warnings
-cargo fmt --check                                   # not --all: that formats the fetched SDK
-rm -f Cargo.lock                                    # a packed lock changes the artifact
-cargo horizon-mod build                             # -> target/horizon-mod/elevatorid.hmod
-cargo horizon-mod check elevatorid.hmod
-cargo horizon-mod fits elevatorid.hmod --build nightly
+1. Install the [Horizon launcher](https://github.com/horizon-rust/horizon/releases) (0.2.70 or newer).
+2. Add `elevatorid.hmod` to the instance's mods.
+3. The package is pinned to a specific Horizon build; the launcher checks that pin.
+
+## Licence and credit
+
+ElevatorMod was created by its upstream authors; the code, models and assets in the original mod
+remain theirs and are used here under **MIT**. The Rust in this repository is a clean-room
+rewrite for Horizon, not a translation of the original source.
+
+- `LICENSE` — the upstream licence text.
+- `LICENSE-NOTICE.md` — what this port carries and where it came from.
+- The upstream project: https://github.com/VsnGamer/ElevatorMod
+
+## Technical details
+
+```
+horizon-mod.toml   package manifest (id, version, api, [native] pin)
+Cargo.toml         the crate; depends on `horizon-mod-api` from the fetched SDK
+src/               lib.rs (the one `impl Hooks`), runtime.rs (pure logic + tests), glue
+assets/ data/      the content the package ships
+tools/             content generators and the e2e scenario
 ```
 
-A game carrying the mod is built by the launcher, which compiles `src/` against the pinned
-build: `horizon-launcher native-build ports/elevatorid --instance <i> --trust-native-code`.
-`tools/e2e.sh` then drives the jump/sneak scenario with `GAME=` pointing at that build (and
-`CONTROL_GAME=` at an unmodified build for the differential). It needs the prepared 26.3
-resources and `jq`.
+- Build: `cargo horizon-mod build` (packages; it does not compile against the game).
+- Test: `cargo test`, `cargo clippy --all-targets -- -D warnings`.
+- In-game: `ports/tools/launcher-game.sh run elevatorid` in the campaign tree, or install the
+  `.hmod` and play; the harness scenario is `tools/e2e.sh`.
 
-## Layout
-
-| Path | What it is |
-|---|---|
-| `horizon-mod.toml` | the only manifest: id, version, `api = "0.2"`, side, capabilities, `[native]` pins |
-| `Cargo.toml` | one crate; the only dependency is `horizon-mod-api` from `.horizon/sdk/` |
-| `src/lib.rs` | the one `#[mod_api::horizon_mod] impl Hooks` |
-| `src/support.rs` | the glue: the travel queue, the column reads, the teleport |
-| `src/runtime.rs` | the pure planner and its tests (byte-identical to the retired bundle's) |
-| `assets/elevatorid/`, `data/elevatorid/` | the carried content: 16 blocks, items, models, textures, recipes, loot, tags, lang |
-| `tools/e2e.sh` | the in-game scenario |
-| `notes.md`, `VALIDATION.md`, `REPIN-AUDIT.md` | the port's history, evidence and gaps |
-| `LICENSE`, `LICENSE-NOTICE.md` | MIT text with the original copyright, and where it was read |
-
-## Licence
-
-MIT. `LICENSE` keeps the original `Copyright (c) 2016 Vasco (ElevatorMod)` beside the port's own.
-Local-only until the maintainer approves publishing (ARCHITECTURE.md §8).
+This repository is generated from the campaign's port at `ports/elevatorid/`; the port's own
+`notes.md` is the full record (decisions, traps, evidence).
