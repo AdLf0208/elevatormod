@@ -13,8 +13,8 @@ id = "elevatorid"
 name = "ElevatorMod"
 # The port's own version, not the original mod's 1.21.1-1.11.4: a first publication under the SDK
 # package format (the retired .hnmod bundle was the campaign's 0.1.0).
-version = "0.2.0"
-description = """Sixteen coloured elevator blocks. Stand on one and jump to ride the column up to the nearest elevator above you, or sneak to ride it down to the nearest one below: the destination is the top of that elevator's block, centred, and your view is kept. A target whose cell above suffocates is skipped and the ride continues past it, up to 384 blocks and 6 blocks below your feet for the origin. Camouflage, the per-block options screen, directional yaw and the arrow, the XP cost, mob spawning, sounds and the config file are not ported yet."""
+version = "0.2.2"
+description = """Sixteen coloured elevator blocks. Stand on one and jump to ride the column up to the nearest elevator above you, or sneak to ride it down to the nearest one below: the destination is the top of that elevator's block, centred. A plain elevator keeps your view; a directional one (its facing state) turns you to face its direction and levels your pitch, as the original does. A target whose cell above suffocates is skipped and the ride continues past it, up to 384 blocks and 6 blocks below your feet for the origin. Camouflage, the per-block options screen, the arrow overlay, the XP cost, mob spawning, sounds and the config file are not ported yet."""
 authors = ["Vasco (ElevatorMod)", "Horizon native mod contributors"]
 # A native mod: Rust in src/, compiled by the launcher against the game build [native] pins,
 # beside data/ and assets/.
@@ -28,5 +28,5 @@ capabilities = ["registries"]
 
 [native]
 game = "26.3"
-horizon = "0b14f8acfd97fa2c750e42795249dcc981178ca4"
+horizon = "0a875da91dbb0fdcb7ba8c42c11341aa229af51a"
 mixins = "e59da9094f0c2fdda6c627fe9eff22dec6a906f0"

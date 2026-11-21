@@ -3,8 +3,9 @@
 //! Ported from ElevatorMod 1.21.1-1.11.4 (VsnGamer/ElevatorMod, MIT) for Minecraft 26.3, from the
 //! upstream source read for behaviour only: this is a clean-room Rust rewrite.
 //!
-//! [`runtime`] is the pure planner with its tests. [`support`] is the glue: the travel queue, the
-//! column reads through the level handle and the player teleport. This file is the one
+//! [`runtime`] is the pure planner with its tests. [`arrival`] is the view a ride lands with (the
+//! target's `directional`/`facing` states) and its tests. [`support`] is the glue: the travel
+//! queue, the column reads through the level handle and the player teleport. This file is the one
 //! `impl mod_api::Hooks`, which the macro requires at the crate root.
 //!
 //! # Where the retired `.hnmod` container's hooks went
@@ -20,6 +21,7 @@
 //! | `content_root` HEAD → `embedded_content.rs` | gone: the flat `.hmod` carries `assets/` and `data/` itself |
 //! | `player_tick` (31) → `player.rs` | dropped: it was the body-predicate fallback for the jump edge, which `player_jump` now reports exactly |
 //! | `tick` (4) → `tick.rs` | dropped: it was the window's raw Space edge, the same fallback on the client side |
+pub mod arrival;
 pub mod runtime;
 pub mod support;
 

@@ -1,5 +1,23 @@
 {
   "template": "minecraft:stone",
+  "state_properties": {
+    "facing": {
+      "type": "enum",
+      "values": [
+        "north",
+        "south",
+        "west",
+        "east"
+      ]
+    },
+    "directional": {
+      "type": "boolean"
+    }
+  },
+  "default_state": {
+    "facing": "north",
+    "directional": "false"
+  },
   "properties": {
     "hardness": 0.8,
     "explosion_resistance": 0.8,

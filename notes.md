@@ -3,17 +3,21 @@
 Ported from **ElevatorMod 1.21.1-1.11.4** (`VsnGamer/ElevatorMod`, MIT) for
 Minecraft Java 1.21.1 NeoForge. Local-only port.
 
-Status: `ported-partial` — **0.2.0, one flat SDK package** (mod API 0.2, nightly
-`0b14f8a`), migrated 2026-11-18 from the retired `.hnmod` container; see
-[`## Migration to the SDK format`](#migration-to-the-sdk-format-020-2026-11-18).
+Status: `ported-partial` — **0.2.2, one flat SDK package** (mod API 0.2, nightly
+`0a875da`), migrated 2026-11-18 from the retired `.hnmod` container; see
+[`## Migration to the SDK format`](#migration-to-the-sdk-format-020-2026-11-18)
+and the 0.2.2 slice at the end ([`## Slice 3 — the arrival view`](#slice-3--the-arrival-view-directional-elevators-022-2026-11-21)).
 Slice 1: all 16 coloured elevators, jump-up / sneak-down travel between blocks
 in the same column, nearest target, range 384, activation range 6,
 sameColor=false, precision target (x/z centred); slice 2 (`1d63e0a`): the
-transport is the pin's native player teleport. Out of scope: camouflage, options
-GUI, directional yaw/arrow, XP, sound/particles, mob spawning, config file.
-**No in-game run of the 0.2.0 package exists** — `horizon-launcher` is not
-installed here; the 0.1.0 runs are historical evidence of the same behaviour
-(gap 1 below).
+transport is the pin's native player teleport; slice 3 (`0a875da`): the
+`facing`/`directional` block states and the arrival view (a directional target
+turns you and levels the pitch), plus a real in-game craft of all 16 recipes.
+Out of scope: camouflage, options GUI, the arrow overlay, XP, sound/particles,
+mob spawning, config file.
+The package **is** run in game since 0.2.1 (`horizon-launcher native-build`,
+`ports/_shared/evidence/elevatorid-e2e/`); the 0.1.0 runs under
+`_shared/evidence/elevatorid/` are historical evidence of the same behaviour.
 
 
 ## Behaviour (slice 1)
@@ -839,3 +843,240 @@ and the generated `uses.json`. **No `Cargo.lock`**, no `target/`, no plan files.
     package's own layout.
 
 Skills: superpowers/using-superpowers,brainstorming,writing-plans,test-driven-development,systematic-debugging,verification-before-completion; BeautifulRust/rust-best-practices,rust-port,rust-review
+
+## Review fixes (2026-11-18, PR #1233)
+
+The reviewer found the live travel path passed `false` for same-colour matching
+(`src/support.rs:116`), although the registry entry and this port promise same-colour travel: a
+player could enter a differently coloured elevator's landing where public and private landings share
+a column.
+
+- **Fix.** `SAME_COLOR = true` in `support.rs` and `plan_live` is the only call the tick makes;
+  `runtime.rs` keeps the planner's upstream-configurable parameter untouched (the file is still
+  byte-identical, sha `ee6aa4ed…`).
+- **Test.** `the_live_ride_lands_on_the_same_colour_and_skips_another`: a red landing at 66 between
+  white ones at 63 and 69 is skipped (pre-fix it returned 66; the test failed with
+  `left: Some(66)`). The README now says same-colour.
+- **Also fixed to make the existing in-game assertions hold at `0b14f8a`.** `Column::suffocating`
+  read `LevelRef::collision_boxes`, which refuses a parked level; at `ServerTickEnd` a level can be
+  parked, so every cell read clear and the "stone above the elevator" case chose the blocked target.
+  It now reads the state's own collision shape (`block_state` + `block_shape`, block-local), which
+  needs no resident level. The e2e also clears the End exit portal's dragon egg from its column
+  (it made an unmodified game's jump land at y=65).
+- **In-game.** The run passes the obstruction step, skips a red landing for a white one, and an
+  all-red column does not travel; the differential on an unmodified game stays at 64. Evidence:
+  `../_shared/evidence/elevatorid-e2e/e2e-launcher.log` (`PASS` + `EXIT:0`) and
+  `e2e-launcher-control.log` (`FAIL: expected y=67 after jump, got 64.0`, `EXIT:1`); checker green.
+- **Package.** `elevatorid.hmod`, **0.2.1**, 135,618 B, sha256
+  `3d3ef0d422981c94de59939ce4ab824eba1d8c530ff80a7429f913cf814ea71a`; two builds byte-identical,
+  `check` and `fits --build 0b14f8a` exit 0.
+
+Skills: superpowers/using-superpowers, brainstorming, writing-plans, test-driven-development, systematic-debugging, verification-before-completion; BeautifulRust/rust-best-practices, rust-port, rust-review
+
+---
+
+## Slice 3 — the arrival view: directional elevators (0.2.2, 2026-11-21)
+
+**Class/tier:** content / **logic** (`ports/ledger.csv`; approach per `horizon/docs/modpacks.md`
+§Tiers — content plus behaviour, no renderer, no machine). The brief's parenthetical "(deep)" is a
+template slip; the port's row and this slice stay at `logic`. Licence MIT, rank 0.
+
+**Pin:** SDK nightly **`0a875da91dbb0fdcb7ba8c42c11341aa229af51a`** (2026-11-20) + horizon-mixins
+**`e59da9094f0c2fdda6c627fe9eff22dec6a906f0`** (unchanged). Repinned from `0b14f8a`; the delta is
+additive for this port (no hook this package names changed), and `.horizon/sdk` was deleted before
+the first build so the tool re-fetched and printed `SDK 0a875da (build 0a875da91db…) in
+./.horizon/sdk` (trap: a stale `.horizon/sdk` survives a manifest repin).
+
+### The gap this slice closes
+
+From the migration section's gap 4, verbatim:
+
+> **Not carried:** camouflage, the per-block options screen, `facing`/`directional`/`show_arrow`
+> states and the arrow model, `resetPitch*`, the XP cost, mob spawning, the config file
+> (`config/elevatorid-server.toml`) and the sounds
+
+This slice takes the **arrival view**: the two block states `facing` and `directional`, and the
+server rule behind `TeleportPacket.java:71-77` of the upstream clone
+(`ports/_shared/upstream/elevatorid/`, commit `129614f8…`):
+
+```
+final float yaw = toState.getValue(DIRECTIONAL)
+        ? toState.getValue(FACING).toYRot() : player.getYRot();
+final float pitch = (directional && resetPitchDirectional) || (!directional && resetPitchNormal)
+        ? 0F : player.getXRot();
+```
+
+So a **directional** landing turns you to the target's facing and levels the pitch; a plain one
+keeps your view. Defaults (`Config.java:53-58`): `resetPitchDirectional=true`,
+`resetPitchNormal=false`. Before this slice the port always passed the player's own angles through,
+so a directional elevator — which upstream lets a server put at a shop exit — did nothing.
+
+The **arrow overlay** (`show_arrow`) is *not* carried: upstream draws it from a block-entity
+renderer, which is a `client` half this `logic` slice must not grow, and a block state nothing reads
+is dead data. It stays in the gap list, below.
+
+### TDD: red first
+
+`src/arrival.rs` (new pure module: `Facing` (parse + `Direction.toYRot` yaw),
+`Look`, `arrival(facing: Option<Facing>, current: Look) -> Look`) was written with its four tests
+and `todo!()` bodies, then `cargo test --offline`:
+
+```
+test result: FAILED. 16 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+---- arrival::tests::a_plain_elevator_keeps_the_view stdout ----
+thread 'arrival::tests::a_plain_elevator_keeps_the_view' (117953) panicked at src/arrival.rs:51:5:
+not yet implemented
+```
+
+Full log (sha of the red tree in its header): `_shared/evidence/elevatorid/sdk-test-arrival-red.log`,
+`EXIT:101`. Then the two functions were implemented, and all 20 tests pass
+(`sdk-test.log`: `test result: ok. 20 passed; 0 failed`, `EXIT:0`).
+
+### What changed
+
+| file | change |
+|---|---|
+| `src/arrival.rs` | new: `Facing` (`north/south/west/east`, yaw 180/0/90/270), `Look`, `arrival`, the two `resetPitch*` constants, 4 tests |
+| `src/support.rs` | `landing_look(level, host, at, rotation)`: reads the **target's** `directional`/`facing` with `LevelRef::block_property` (block-local, so it works at `ServerTickEnd` where a level can be parked) and passes `Some([yaw, pitch])` to `EntityRef::teleport_to`; a directional block whose facing does not parse keeps the view rather than inventing a direction |
+| `data/elevatorid/horizon/block/elevator_*.json` (16) | `state_properties`: `facing` enum `["north","south","west","east"]`, `directional` boolean; `default_state`: `north`, `false` (upstream's `ElevatorBlockBase.java:53-58`) |
+| `src/lib.rs`, `src/support.rs` docs | the new module and the turn |
+| `horizon-mod.toml`, `Cargo.toml` | 0.2.2, `[native] horizon = 0a875da…` |
+| `tools/e2e.sh` | two arrival phases, a recipe phase, `--offscreen` (see below), `SELFTEST=look` |
+| `tools/craft_check.py` | new: crafts the shaped white recipe and all 15 redyes in a table |
+
+`src/runtime.rs` is untouched: sha256 `ee6aa4ed109a4080f474f9906abbe2ffd07750b8a0aa8ac631d8cc3c47983025`,
+identical in the tree and inside the package (the campaign's byte-identical carry).
+
+The blockstate JSONs stay the single `""` variant upstream ships: Horizon's binder treats an empty
+variant key as the predicate that matches every state (`horizon-assets/src/blockstate/bind.rs`,
+`variant_predicate`), exactly as vanilla's fallback does, so 8 states share the one cube model.
+
+### In game (the leg)
+
+`/home/adlf/.cache/horizon-e2e/0a875da/elevatorid/horizon-client`, built by
+`launcher-game.sh build elevatorid` from this package (`Compiling elevatorid (1 of 1)`), game 26.3,
+launcher 0.2.92, SDK `0a875da`.
+
+The arrival phases use a second column at x=3 so the travel phases' column is untouched:
+
+```
+== arrival view: a plain elevator keeps the view it arrived with ==
+plain target state: elevatorid:elevator_white[directional=false,facing=east]
+plain jump: y=67.0 yaw=33.0 pitch=40.0
+== arrival view: a directional elevator turns you to its facing and levels the pitch ==
+directional target state: elevatorid:elevator_white[directional=true,facing=east]
+directional jump: y=67.0 yaw=270.0 pitch=0.0 (expected yaw=270 pitch=0)
+```
+
+Same block, **same `facing=east`**, only `directional` flipped: the plain phase is the differential
+for the directional one, and the read-back `state` string shows the declared states really exist on
+the placed block (not just in the registry).
+
+Fail-capability: `SELFTEST=look` keeps the pre-0.2.2 expectation (`yaw=33 pitch=40`) for the same
+scenario and must fail —
+
+```
+FAIL: expected yaw=33 after a directional ride, got 270.0
+```
+
+`SELFTEST=1` (the 0.1.0 body-predicate counterfactual) still fails at the blocked target
+(`FAIL: expected y=64 (skipping the blocked 66), got 70.0`), and the control leg — the same
+assertions on the same Nightly without the package — fails at the first jump
+(`FAIL: expected y=67 after jump, got 64.0`). `check-e2e-logs.py elevatorid-e2e --strict`:
+`logs=4 ok=4 missing-exit=0 bad-exit=0`.
+
+**Why `--offscreen`.** The recipe phase drives a crafting table with `ctl click-slot`, which answers
+`{"error":"no renderer yet"}` under `--headless`; `--offscreen` gives the same headless play with a
+renderer. It also keeps this leg local (`remote-build.md`: the far box has no renderer).
+
+### Recipes, crafted for real (the parity rule)
+
+The port had shipped 32 recipe files since the first carry and **never crafted one**. The phase now
+opens a fresh crafting table per case (`craft_check.py`) and asserts the output id/count and that
+the ingredients were consumed, from the hotbar after `clear @s`:
+
+- `elevator_white`: shaped, 8 `minecraft:white_wool` in the ring, 1 `minecraft:ender_pearl` centre
+  → 1 `elevatorid:elevator_white`, wool 0, pearl 0.
+- 15 redyes: shapeless, 1 elevator of `#elevatorid:elevators` + 1 `#c:dyes/<colour>` → that
+  colour, both inputs 0. All fifteen pass, which also proves the carried `data/c/tags/item/dyes/*`
+  tags resolve at 26.3 (an unresolved tag would drop the recipe).
+- control: eight wool and **no pearl** crafts nothing (the shaped pattern discriminates), and the
+  eight wool come back after the close.
+
+```
+PASS: 16/16 recipes crafted, each consumed its ingredients; eight wool alone is not the pattern
+```
+
+### Coverage table (families in the jar)
+
+| family | status |
+|---|---|
+| 16 coloured blocks + items, models, textures, lang | `tested` — travel/colour/arrival phases place and read them; `state` strings read back |
+| block state `facing` (4 values) | `tested` — `plain`/`directional` phases read `[directional=…,facing=east]` back from the placed block; `setblock` accepts the property |
+| block state `directional` | `tested` — the two arrival phases are each other's differential (only this flag differs) |
+| block state `show_arrow` | `not ported` — the arrow is drawn by a block-entity renderer (client half); a state nothing reads would be dead data |
+| jump-up / sneak-down travel, nearest target, range 384, activation 6 | `tested` — `jump`/`sneak` phases (67 / 64) |
+| obstructed target skipped, scan continues | `tested` — stone above 66 → 70 |
+| same-colour rule (`sameColor=true`, the registry promise) | `tested` — red landing at 66 skipped for white 69; all-red column does not travel |
+| precision landing (x/z centred, feet on top) | `tested` — positions `[3.5, 67, 0.5]`, `[0.5, 67, 0.5]` |
+| arrival view: plain keeps, directional turns + levels pitch | `tested` — the two arrival phases; `SELFTEST=look` fails on the old expectation |
+| 16 recipes (1 shaped + 15 shapeless) | `tested` — `craft_check.py`, 16/16, ingredients consumed, 8-wool control empty |
+| 16 loot tables (block drops itself) | `tested` — the `break` in the recipe/placement work returns the id (the drop is the block's own item; see the 0.1.0 ladder) — **see note** |
+| 3 tags (`elevatorid:elevators` block+item, `c:dyes/*`) | `tested` via the redyes (the tag is the recipe's ingredient) |
+| camouflage, options GUI, XP cost, mob spawning, sounds, config file | `not ported` — gap 4; the config has no SDK file API at `0a875da` (`grep config_dir` over the SDK is empty) |
+| `noOcclusion` / light dampening | `not ported` — template fidelity, gap 5 (`BlockStates::{light_emission,is_solid_render}` exist at `0a875da` but `noOcclusion` has no content switch) |
+
+**Note on loot:** the block drops were verified in the 0.1.0 bundle's ladder (`break` → the item),
+not re-run in this slice; the 16 loot tables are unchanged. If the next slice touches drops, re-assert
+them in the same leg.
+
+### Deviations (deliberate)
+
+1. **The two pitch switches are constants**, not a config file: the SDK at `0a875da` has no config
+   directory API for a native mod (`Game::native_config_dir()` belongs to the retired hook API).
+   Upstream's defaults (`true` / `false`) are `RESET_PITCH_DIRECTIONAL` / `RESET_PITCH_NORMAL` in
+   `src/arrival.rs`, and `arrival` uses them, so wiring a config later changes one place.
+2. **A directional elevator with an unreadable `facing` keeps the view** instead of turning to yaw 0:
+   a failed state read must not spin the player.
+3. **`show_arrow` is not declared** (above). Camouflage/XP/sound/mob-spawn stay out, as before.
+4. The **horizontal motion on arrival** is still `/tp`'s (zeroed), gap 2 unchanged; `PlayerRef::set_velocity`
+   is new at `0a875da` and is the next slice's tool (see the report's next slice).
+
+### Ladder (all in `build-slot.sh` leases, `CARGO_INCREMENTAL=0`; package steps `BUILD_LOCAL=1`)
+
+| Step | Command | Result | Evidence |
+|---|---|---|---|
+| tests (red) | `cargo test --offline` | 16 passed, **4 failed** `not yet implemented`, `EXIT:101` | `sdk-test-arrival-red.log` |
+| tests | `cargo test --offline` | **20 passed**, 0 failed, `EXIT:0` | `sdk-test.log` |
+| lints | `cargo clippy --all-targets --offline -- -D warnings` | exit 0, 0 warnings | `sdk-clippy.log` |
+| format | `cargo fmt --check` (not `--all`) | exit 0 | `sdk-fmt.log` |
+| package | `rm -f Cargo.lock && cargo horizon-mod build` ×2 | `SDK 0a875da … in ./.horizon/sdk`, `Built ./target/horizon-mod/elevatorid.hmod`, identical bytes | `sdk-build.log`, `sdk-build-second.log`, `sdk-reproducible.log` |
+| registry check | `cargo horizon-mod check elevatorid.hmod` | `elevatorid 0.2.2 (native-mod, format native-1/0a875da…/e59da90…, for 26.3)`, 139,378 B, sha256 `f17dcbc7…`, **EXIT 0** | `sdk-check.log` |
+| fits the pin | `cargo horizon-mod fits elevatorid.hmod --build nightly` | `0a875da  made for`, EXIT 0 (a tautology, kept) | `sdk-fits.log` |
+| fits another build | `… --build 0b14f8acfd97fa2c750e42795249dcc981178ca4` | `0b14f8a  fits`, EXIT 0 | `sdk-fits-other.log` |
+| game build | `launcher-game.sh build elevatorid` | `Compiling elevatorid (1 of 1)`, `native-0a875da-a5231f3c9b96` | `sdk-build` of that leg / the e2e logs |
+| e2e | `tools/e2e.sh` (`--offscreen`) | **PASS + `EXIT:0`** (travel, colour, arrival, 16 recipes) | `elevatorid-e2e/e2e-launcher.log` |
+| e2e control | same assertions, unmodified Nightly | **`FAIL: expected y=67 after jump, got 64.0` + `EXIT:1`** | `elevatorid-e2e/e2e-launcher-control.log` |
+| e2e selftest | `SELFTEST=1` (blocked target) | **`FAIL: expected y=64 …, got 70.0` + `EXIT:1`** | `elevatorid-e2e/e2e-selftest.log` |
+| e2e selftest (this family) | `SELFTEST=look` | **`FAIL: expected yaw=33 …, got 270.0` + `EXIT:1`** | `elevatorid-e2e/e2e-selftest-look.log` |
+| log gate | `check-e2e-logs.py elevatorid-e2e --strict` | 4/4 ok, exit 0 | — |
+| package gate | `verify-sdk-package.py elevatorid` | 1/1 | — |
+
+Artifact: `ports/elevatorid/elevatorid.hmod`, **139,378 B**, sha256
+`f17dcbc7f3f4df8aec1392fef3cb40af93bff7d4ba1e80df8317ea3a7048de0e`, **197 entries** (5 root
+documents, 187 carried `assets/`+`data/` files, `src/lib.rs`, `src/arrival.rs`, `src/runtime.rs`,
+`src/support.rs`, `uses.json`), **no `Cargo.lock`**, version **0.2.2**.
+
+### Gaps left after this slice
+
+1. **Teleport motion** (gap 2, unchanged): `EntityRef::teleport_to` `/tp`s as a command does, so the
+   horizontal velocity on arrival is lost and no teleport sound is played. `PlayerRef::set_velocity`
+   is new at `0a875da` — the next slice.
+2. **Arrow overlay / `show_arrow`** — client renderer.
+3. **Camouflage + options GUI** — block entity + menu (a `machines`/`client` half).
+4. **Config file** — no SDK config-dir API at this pin; the switches are constants.
+5. **Suffocation** remains the level's full-cell collision shape (glass/leaves corner cases), and the
+   blocks keep the opaque stone template (`noOcclusion` not expressed).
+6. **No logger** (no logger in the SDK).
+
+Skills: superpowers/using-superpowers, brainstorming, writing-plans, test-driven-development, systematic-debugging, verification-before-completion; BeautifulRust/rust-best-practices, rust-port, rust-review

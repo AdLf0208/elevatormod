@@ -3,7 +3,7 @@
 # Minecraft Java 1.21.1 NeoForge; clean-room rewrite for Horizon 26.3.
 # Local-only until the maintainer approves publishing (ARCHITECTURE.md §8).
 name = "horizon-elevatorid"
-version = "0.2.0"
+version = "0.2.2"
 edition = "2024"
 license = "MIT"
 description = "ElevatorMod for Horizon: jump to ride an elevator column up, sneak to ride it down"
